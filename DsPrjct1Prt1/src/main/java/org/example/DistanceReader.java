@@ -1,57 +1,132 @@
-package org.example;
-
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public class DistanceReader {
 
     private static final int NUM_OF_CITIES = 81;
 
-    private static int[][] DISTANCES_OF_CITIES = new int[NUM_OF_CITIES][NUM_OF_CITIES];
+    // MAIN DATA STRUCTURES :
+    // It consists key value pair which key as a String name of city and ArrayList consists of distances as Integers
+    private static Map<String, ArrayList<Integer>> citiesAndDistances = new HashMap<>();
 
-    private static Map<String, Integer> citiesIndexMap = new HashMap<>();
+    // City name list their plate codes equal their indices
+    private static String[] cities = new String[NUM_OF_CITIES + 1]; // 82 elemanlı
+
+    // it is pairs of cityName plateCode
+    private static Map<String, Integer> cityPlateMap = new HashMap<>();
+
+    private static Random random = new Random();
+
 
     public static void main(String[] args) throws FileNotFoundException {
         String filePath = "cityDistance.csv";
-
         extractDataFromFile(filePath);
+
+        visit10cityAndCalculateDistance();
     }
 
+    // it fills citiesAndDistances, cities and cityPlateMap data structures.
     public static void extractDataFromFile(String filePath) throws FileNotFoundException {
         String row;
-        int rowCount = 3;
 
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(filePath))) {
 
-            bufferedReader.readLine();
-            if ((row = bufferedReader.readLine()) != null){
-                String[] cities = row.split(";");
+            bufferedReader.readLine(); // Skip unneccessary rows
 
-                for (int i = 2; i < cities.length ; i++){
-                    citiesIndexMap.put(cities[i-2],i-1);
+            // read title row and skip
+            if ((row = bufferedReader.readLine()) != null){
+                String[] headerParts = row.split(";"); // "İL PLAKA NO"; "İL ADI"; "ADANA"; ...
+
+                cities[0] = ""; // set cities' first element as 0 because it must be all cities' plate code equal to its indices
+
+                for (int i = 2; i < headerParts.length; i++) {
+                    int plaka = i - 1; // "ADANA" (index 2) -> plate 1
+                    String cityName = headerParts[i].trim().toUpperCase();
+
+                    cities[plaka] = cityName; // cities[1] = "ADANA"
+                    cityPlateMap.put(cityName, plaka); // "ADANA" -> 1
+                    citiesAndDistances.put(cityName, new ArrayList<>()); // set free map for after operations
                 }
             }
 
+            // Read rows and fill map with datas
             while ((row = bufferedReader.readLine()) != null){
-                String[] values = row.split(";");
-                for (int i = 1; i < values.length ; i++){
-                    if (rowCount-2 != i){
-                        DISTANCES_OF_CITIES[rowCount-2][i-1] = Integer.parseInt(values[i-1]);
-                    }else {
-                        DISTANCES_OF_CITIES[rowCount-2][i] = 0;
+
+                if (row.trim().isEmpty()) {
+                    continue;
+                }
+
+                String[] values = row.split(";"); // ["01", "ADANA", "", "337", ...]
+
+                if (values.length < 1) {
+                    continue;
+                }
+
+                int plakaNo = Integer.parseInt(values[0].trim());
+                String currentCityKey = cities[plakaNo]; // cities[1] -> "ADANA"
+                ArrayList<Integer> currentDistances = citiesAndDistances.get(currentCityKey);
+
+                for (int i = 2; i < values.length; i++){
+                    String distanceValue = values[i].trim();
+                    if (distanceValue.isEmpty()){
+                        currentDistances.add(0); // if field do not contain any value (distance to itself of city) set as 0
+                    } else {
+                        currentDistances.add(Integer.parseInt(distanceValue));
                     }
                 }
             }
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | NumberFormatException e) {
+            throw new RuntimeException("An error has occured during file reading: " + e.getMessage(), e);
         }
-
     }
 
+
+     // İki şehir arasındaki mesafeyi getirir.
+    public static int getDistance(String city1, String city2) {
+        String city1Upper = city1.toUpperCase();
+        String city2Upper = city2.toUpperCase();
+
+        Integer plaka2 = cityPlateMap.get(city2Upper);
+        ArrayList<Integer> distancesOfCity1 = citiesAndDistances.get(city1Upper);
+
+        if (plaka2 == null || distancesOfCity1 == null) {
+            System.err.println("Error one or more city can not found  -> " + city1 + ", " + city2);
+            return -1; // Error code
+        }
+
+        return distancesOfCity1.get(plaka2 - 1);
+    }
+
+    public static void visit10cityAndCalculateDistance(){
+        int totalDistance = 0;
+        String[] randomCities = new String[10];
+
+        ArrayList<Integer> pickedNumbers = new ArrayList<>();
+        int pointer = 0;
+        while (pickedNumbers.size() != 10){
+            int randomCityPlate = random.nextInt(81) + 1;
+
+            if (!pickedNumbers.contains(randomCityPlate)){
+                pickedNumbers.add(randomCityPlate);
+                randomCities[pointer++] = cities[randomCityPlate];
+            }
+        }
+
+        for (int k = 0; k < randomCities.length ; k++){
+            System.out.println((k+1)+". city which visited is : "+ randomCities[k]);
+            if (k < randomCities.length - 1){
+                totalDistance += getDistance(randomCities[k],randomCities[k+1]);
+            }
+        }
+
+        System.out.println("Total distance : " + totalDistance);
+    }
 }
