@@ -1,9 +1,11 @@
+package org.example;
+
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -12,6 +14,7 @@ public class DistanceReader {
 
     private static final int NUM_OF_CITIES = 81;
 
+    private static final String filePath = "cityDistance.csv";
     // MAIN DATA STRUCTURES :
     // It consists key value pair which key as a String name of city and ArrayList consists of distances as Integers
     private static Map<String, ArrayList<Integer>> citiesAndDistances = new HashMap<>();
@@ -26,19 +29,25 @@ public class DistanceReader {
 
 
     public static void main(String[] args) throws FileNotFoundException {
-        String filePath = "cityDistance.csv";
-        extractDataFromFile(filePath);
 
+        extractDataFromFile(filePath);
         visit10cityAndCalculateDistance();
+
     }
 
     // it fills citiesAndDistances, cities and cityPlateMap data structures.
     public static void extractDataFromFile(String filePath) throws FileNotFoundException {
+        //Basic control for efficiency
+        if (!citiesAndDistances.isEmpty()) {
+            return;
+        }
+
         String row;
 
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(filePath))) {
 
-            bufferedReader.readLine(); // Skip unneccessary rows
+            // Skip unneccessary rows
+            bufferedReader.readLine();
 
             // read title row and skip
             if ((row = bufferedReader.readLine()) != null){
@@ -48,7 +57,7 @@ public class DistanceReader {
 
                 for (int i = 2; i < headerParts.length; i++) {
                     int plaka = i - 1; // "ADANA" (index 2) -> plate 1
-                    String cityName = headerParts[i].trim().toUpperCase();
+                    String cityName = Helper.cityNormalizer(headerParts[i].trim());
 
                     cities[plaka] = cityName; // cities[1] = "ADANA"
                     cityPlateMap.put(cityName, plaka); // "ADANA" -> 1
@@ -90,12 +99,12 @@ public class DistanceReader {
 
 
      // İki şehir arasındaki mesafeyi getirir.
-    public static int getDistance(String city1, String city2) {
-        String city1Upper = city1.toUpperCase();
-        String city2Upper = city2.toUpperCase();
+    public static int getDistance(String city1, String city2) throws FileNotFoundException {
+        extractDataFromFile(filePath);
 
-        Integer plaka2 = cityPlateMap.get(city2Upper);
-        ArrayList<Integer> distancesOfCity1 = citiesAndDistances.get(city1Upper);
+        Integer plaka2 = cityPlateMap.get(Helper.cityNormalizer(city1));
+        ArrayList<Integer> distancesOfCity1 = citiesAndDistances.get(Helper.cityNormalizer(city2));
+
 
         if (plaka2 == null || distancesOfCity1 == null) {
             System.err.println("Error one or more city can not found  -> " + city1 + ", " + city2);
@@ -105,7 +114,9 @@ public class DistanceReader {
         return distancesOfCity1.get(plaka2 - 1);
     }
 
-    public static void visit10cityAndCalculateDistance(){
+    public static void visit10cityAndCalculateDistance() throws FileNotFoundException {
+        extractDataFromFile(filePath);
+
         int totalDistance = 0;
         String[] randomCities = new String[10];
 
@@ -121,12 +132,36 @@ public class DistanceReader {
         }
 
         for (int k = 0; k < randomCities.length ; k++){
-            System.out.println((k+1)+". city which visited is : "+ randomCities[k]);
+            System.out.print((k+1)+". city which visited is : "+ randomCities[k] + " ");
             if (k < randomCities.length - 1){
-                totalDistance += getDistance(randomCities[k],randomCities[k+1]);
+                int distance = getDistance(randomCities[k],randomCities[k+1]);
+                System.out.println("| distance between "+ randomCities[k] + " and "+ randomCities[k+1] +" is : " + distance);
+                totalDistance += distance;
             }
         }
 
         System.out.println("Total distance : " + totalDistance);
     }
+
+    // NUM_OF_CITIES citiesAndDistances cities cityPlateMap
+    public static int getNumOfCities(){
+        return NUM_OF_CITIES;
+    }
+
+    public static Map<String, ArrayList<Integer>> getCitiesAndDistances() throws FileNotFoundException {
+        return citiesAndDistances;
+    }
+
+    public static String[] getCities(){
+        return cities;
+    }
+
+    public static Map<String, Integer> getCityPlateMap() {
+        return cityPlateMap;
+    }
+
+    public static String getFilePath() {
+        return filePath;
+    }
+
 }
